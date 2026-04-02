@@ -1,6 +1,7 @@
 /**
  * Render Service - Remotion + headless Chrome
- * Optimized for Render.com free tier (512MB RAM)
+ * ULTRA-LIGHT for Render.com free tier (512MB RAM)
+ * Resolution: 480p, minimal memory footprint
  */
 
 const express = require('express');
@@ -10,101 +11,60 @@ const { bundle } = require('@remotion/bundler');
 const { renderMedia, selectComposition } = require('@remotion/renderer');
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '10mb' }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log('Body:', JSON.stringify(req.body).substring(0, 500));
-  }
-  next();
-});
+// Logging
+const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
-// Bundle cache (avoid re-bundling every render)
+// Bundle cache
 let cachedBundle = null;
-let bundleTime = 0;
-const BUNDLE_CACHE_TTL = 3600000; // 1 hour
 
 async function getBundle() {
-  const now = Date.now();
-  if (cachedBundle && (now - bundleTime) < BUNDLE_CACHE_TTL) {
-    console.log('Using cached bundle');
+  if (cachedBundle) {
+    log('Using cached bundle');
     return cachedBundle;
   }
-  
-  console.log('Bundling Remotion project...');
+  log('Bundling (first time)...');
   cachedBundle = await bundle({
     entryPoint: path.join(__dirname, 'src', 'index.js'),
     webpackOverride: (config) => config,
   });
-  bundleTime = now;
-  console.log('Bundle ready:', cachedBundle);
+  log('Bundle ready');
   return cachedBundle;
 }
 
-// Health check
+// Health
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  const mem = process.memoryUsage();
+  res.json({
+    status: 'ok',
     uptime: process.uptime(),
-    memory: process.memoryUsage(),
+    memoryMB: Math.round(mem.rss / 1024 / 1024),
     bundleCached: !!cachedBundle
   });
 });
 
-// Debug endpoint
-app.post('/debug', (req, res) => {
-  console.log('DEBUG endpoint hit:', req.body);
-  res.json({ received: true, body: req.body });
-});
-
-// Main render endpoint (async with callback)
+// Render (async)
 app.post('/render', async (req, res) => {
-  const startTime = Date.now();
   const { briefId, brief, callbackUrl } = req.body;
-  console.log(`[${briefId}] Starting async render...`);
+  log(`[${briefId}] Render started`);
 
   res.json({ success: true, briefId, status: 'started' });
 
   try {
-    const props = prepareProps(brief);
-    const bundled = await getBundle();
-    
-    const composition = await selectComposition({
-      serveUrl: bundled,
-      id: brief.template || 'PromoHighlight',
-      inputProps: props,
-    });
-
-    const outputPath = `/tmp/${briefId}.mp4`;
-    
-    await renderMedia({
-      composition,
-      serveUrl: bundled,
-      codec: 'h264',
-      outputLocation: outputPath,
-      inputProps: props,
-      crf: 28, // Lower quality, faster render
-      scale: 0.75, // 75% resolution for free tier
-    });
-
-    const videoBuffer = fs.readFileSync(outputPath);
+    const videoBuffer = await doRender(brief, briefId);
     const videoBase64 = videoBuffer.toString('base64');
-    const renderTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[${briefId}] Complete: ${renderTime}s, ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+    log(`[${briefId}] Done: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
 
     if (callbackUrl) {
       await fetch(callbackUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ briefId, status: 'completed', videoBase64, renderTime })
-      });
+        body: JSON.stringify({ briefId, status: 'completed', videoBase64 })
+      }).catch(e => log(`Callback failed: ${e.message}`));
     }
-
-    fs.unlinkSync(outputPath);
   } catch (err) {
-    console.error(`[${briefId}] Failed:`, err.message);
+    log(`[${briefId}] Failed: ${err.message}`);
     if (callbackUrl) {
       await fetch(callbackUrl, {
         method: 'POST',
@@ -115,70 +75,74 @@ app.post('/render', async (req, res) => {
   }
 });
 
-// Direct render (returns video immediately)
+// Render direct
 app.post('/render-direct', async (req, res) => {
-  const startTime = Date.now();
   const { brief } = req.body;
   const briefId = `direct-${Date.now()}`;
-  console.log(`[${briefId}] Starting direct render...`);
+  log(`[${briefId}] Direct render`);
 
   try {
-    const props = prepareProps(brief);
-    const bundled = await getBundle();
-    
-    const composition = await selectComposition({
-      serveUrl: bundled,
-      id: brief.template || 'PromoHighlight',
-      inputProps: props,
-    });
-
-    const outputPath = `/tmp/${briefId}.mp4`;
-    
-    await renderMedia({
-      composition,
-      serveUrl: bundled,
-      codec: 'h264',
-      outputLocation: outputPath,
-      inputProps: props,
-      crf: 28,
-      scale: 0.75, // 75% resolution
-      timeoutInMilliseconds: 120000, // 2 min timeout
-    });
-
-    const videoBuffer = fs.readFileSync(outputPath);
-    const renderTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[${briefId}] Direct complete: ${renderTime}s`);
-
+    const videoBuffer = await doRender(brief, briefId);
+    log(`[${briefId}] Done: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
     res.set('Content-Type', 'video/mp4');
-    res.set('Content-Disposition', `attachment; filename="${briefId}.mp4"`);
     res.send(videoBuffer);
-
-    fs.unlinkSync(outputPath);
   } catch (err) {
-    console.error(`[${briefId}] Direct failed:`, err.message);
-    res.status(500).json({ error: err.message, stack: err.stack });
+    log(`[${briefId}] Failed: ${err.message}`);
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Core render function
+async function doRender(brief, briefId) {
+  const startTime = Date.now();
+  const props = prepareProps(brief);
+  const bundled = await getBundle();
+
+  const composition = await selectComposition({
+    serveUrl: bundled,
+    id: brief.template || 'PromoHighlight',
+    inputProps: props,
+  });
+
+  const outputPath = `/tmp/${briefId}.mp4`;
+
+  await renderMedia({
+    composition,
+    serveUrl: bundled,
+    codec: 'h264',
+    outputLocation: outputPath,
+    inputProps: props,
+    crf: 32,       // Lower quality = smaller file = less memory
+    scale: 0.5,    // 50% resolution (480p from 960p base)
+  });
+
+  const buffer = fs.readFileSync(outputPath);
+  fs.unlinkSync(outputPath);
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  log(`[${briefId}] Render took ${elapsed}s`);
+
+  return buffer;
+}
+
 function prepareProps(brief) {
-  const platformConfig = {
-    instagram: { width: 720, height: 1280, fps: 24 },  // Reduced for free tier
-    tiktok: { width: 720, height: 1280, fps: 24 },
-    youtube: { width: 720, height: 1280, fps: 24 },
-    linkedin: { width: 1280, height: 720, fps: 24 },
-    twitter: { width: 1280, height: 720, fps: 24 }
+  // Ultra-light config: 480p, 24fps, 12 seconds
+  const configs = {
+    instagram: { width: 480, height: 854, fps: 24 },
+    tiktok: { width: 480, height: 854, fps: 24 },
+    youtube: { width: 480, height: 854, fps: 24 },
+    linkedin: { width: 854, height: 480, fps: 24 },
+    twitter: { width: 854, height: 480, fps: 24 }
   };
 
   return {
-    hook: brief.hook || 'Automate Your Business',
+    hook: brief.hook || 'AISolutionsHub',
     features: brief.features || [],
-    cta: brief.cta || { text: 'Visit AISolutionsHub.org', url: 'aisolutionshub.org' },
-    config: platformConfig[brief.platform] || platformConfig.instagram,
+    cta: brief.cta || { text: 'Visit', url: 'aisolutionshub.org' },
+    config: configs[brief.platform] || configs.instagram,
     style: brief.style || { primaryColor: '#6366f1', secondaryColor: '#818cf8' }
   };
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Render service running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => log(`Running on port ${PORT}`));
