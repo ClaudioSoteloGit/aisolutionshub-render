@@ -1,8 +1,8 @@
 import React from 'react';
-import { Composition } from 'remotion';
+import { Composition, registerRoot } from 'remotion';
 import { PromoHighlight } from './compositions/PromoHighlight';
 
-export const RemotionRoot = () => {
+const RemotionRoot = () => {
   return (
     <>
       <Composition
@@ -27,3 +27,5 @@ export const RemotionRoot = () => {
     </>
   );
 };
+
+registerRoot(RemotionRoot);
