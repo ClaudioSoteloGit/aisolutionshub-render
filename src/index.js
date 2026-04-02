@@ -8,10 +8,10 @@ const RemotionRoot = () => {
       <Composition
         id="PromoHighlight"
         component={PromoHighlight}
-        durationInFrames={600}
-        fps={30}
-        width={1080}
-        height={1920}
+        durationInFrames={360}
+        fps={24}
+        width={720}
+        height={1280}
         defaultProps={{
           hook: 'Automate Your Business with AI',
           features: [
@@ -20,7 +20,7 @@ const RemotionRoot = () => {
             { icon: '🎯', title: 'Results-Driven', desc: 'Proven outcomes' }
           ],
           cta: { text: 'Visit AISolutionsHub.org', url: 'aisolutionshub.org' },
-          config: { width: 1080, height: 1920, fps: 30 },
+          config: { width: 720, height: 1280, fps: 24 },
           style: { primaryColor: '#6366f1', secondaryColor: '#818cf8' }
         }}
       />
