@@ -12,6 +12,15 @@ const { renderMedia, selectComposition } = require('@remotion/renderer');
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', JSON.stringify(req.body).substring(0, 500));
+  }
+  next();
+});
+
 // Bundle cache (avoid re-bundling every render)
 let cachedBundle = null;
 let bundleTime = 0;
@@ -42,6 +51,12 @@ app.get('/health', (req, res) => {
     memory: process.memoryUsage(),
     bundleCached: !!cachedBundle
   });
+});
+
+// Debug endpoint
+app.post('/debug', (req, res) => {
+  console.log('DEBUG endpoint hit:', req.body);
+  res.json({ received: true, body: req.body });
 });
 
 // Main render endpoint (async with callback)
