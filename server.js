@@ -157,7 +157,7 @@ function prepareProps(brief) {
   return {
     hook: brief.hook || 'Automate Your Business',
     features: brief.features || [],
-    cta: brief.ccall || { text: 'Visit AISolutionsHub.org', url: 'aisolutionshub.org' },
+    cta: brief.cta || { text: 'Visit AISolutionsHub.org', url: 'aisolutionshub.org' },
     config: platformConfig[brief.platform] || platformConfig.instagram,
     style: brief.style || { primaryColor: '#6366f1', secondaryColor: '#818cf8' }
   };
