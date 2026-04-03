@@ -106,41 +106,69 @@ async function doRender(brief, briefId) {
 
   const outputPath = `/tmp/${briefId}.mp4`;
 
+  // Quality tiers
+  const qualityTiers = {
+    standard: { crf: 28, scale: 1.0 },   // 720p
+    high: { crf: 23, scale: 1.0 },        // 720p high quality
+    ultra: { crf: 18, scale: 1.5 }        // 1080p (needs more RAM)
+  };
+  
+  const tier = qualityTiers[brief.quality || 'standard'];
+
   await renderMedia({
     composition,
     serveUrl: bundled,
     codec: 'h264',
     outputLocation: outputPath,
     inputProps: props,
-    crf: 32,       // Lower quality = smaller file = less memory
-    scale: 0.5,    // 50% resolution (480p from 960p base)
+    crf: tier.crf,
+    scale: tier.scale,
+    imageFormat: 'jpeg',
+    jpegQuality: 90,
+    numberOfGpuTasks: 1,  // Limit for free tier
+    concurrency: 1,        // Single thread for memory safety
+    verbose: false,
+    onProgress: (progress) => {
+      log(`[${briefId}] Progress: ${Math.round(progress.progress * 100)}%`);
+    }
   });
 
   const buffer = fs.readFileSync(outputPath);
   fs.unlinkSync(outputPath);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  log(`[${briefId}] Render took ${elapsed}s`);
+  log(`[${briefId}] Render took ${elapsed}s | Quality: ${brief.quality || 'standard'} | Size: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
 
   return buffer;
 }
 
 function prepareProps(brief) {
-  // Ultra-light config: 480p, 24fps, 12 seconds
+  // Quality tiers: 720p standard, 1080p for ultra
   const configs = {
-    instagram: { width: 480, height: 854, fps: 24 },
-    tiktok: { width: 480, height: 854, fps: 24 },
-    youtube: { width: 480, height: 854, fps: 24 },
-    linkedin: { width: 854, height: 480, fps: 24 },
-    twitter: { width: 854, height: 480, fps: 24 }
+    instagram: { width: 720, height: 1280, fps: 30 },
+    tiktok: { width: 720, height: 1280, fps: 30 },
+    youtube: { width: 720, height: 1280, fps: 30 },
+    linkedin: { width: 1280, height: 720, fps: 30 },
+    twitter: { width: 1280, height: 720, fps: 30 }
   };
+
+  // Audio support
+  const audioConfig = brief.audio ? {
+    enabled: true,
+    type: brief.audio.type || 'tts',
+    text: brief.audio.text || brief.hook,
+    voice: brief.audio.voice || 'default',
+    speed: brief.audio.speed || 1.0
+  } : { enabled: false };
 
   return {
     hook: brief.hook || 'AISolutionsHub',
     features: brief.features || [],
     cta: brief.cta || { text: 'Visit', url: 'aisolutionshub.org' },
     config: configs[brief.platform] || configs.instagram,
-    style: brief.style || { primaryColor: '#6366f1', secondaryColor: '#818cf8' }
+    style: brief.style || { primaryColor: '#6366f1', secondaryColor: '#818cf8' },
+    audio: audioConfig,
+    quality: brief.quality || 'standard'
   };
 }
 
