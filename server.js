@@ -168,7 +168,8 @@ function prepareProps(brief) {
     config: configs[brief.platform] || configs.instagram,
     style: brief.style || { primaryColor: '#6366f1', secondaryColor: '#818cf8' },
     audio: audioConfig,
-    quality: brief.quality || 'standard'
+    quality: brief.quality || 'standard',
+    visualStyle: brief.visualStyle || 'dynamic'
   };
 }
 

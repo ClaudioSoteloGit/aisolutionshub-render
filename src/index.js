@@ -21,7 +21,8 @@ const RemotionRoot = () => {
           cta: { text: 'Start Free', url: 'aisolutionshub.org' },
           config: { width: 720, height: 1280, fps: 30 },
           style: { primaryColor: '#6366f1', secondaryColor: '#818cf8' },
-          audio: { enabled: false }
+          audio: { enabled: false },
+          visualStyle: 'dynamic'
         }}
       />
     </>

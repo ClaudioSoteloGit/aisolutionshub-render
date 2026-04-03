@@ -8,13 +8,16 @@
     "dev": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "remotion": "^4.0.0",
-    "@remotion/cli": "^4.0.0",
     "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/motion-blur": "^4.0.443",
     "@remotion/renderer": "^4.0.0",
+    "@remotion/shapes": "^4.0.443",
+    "@remotion/transitions": "^4.0.443",
+    "express": "^4.18.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
