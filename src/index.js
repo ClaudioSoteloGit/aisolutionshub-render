@@ -19,8 +19,8 @@ const RemotionRoot = () => {
             { icon: '🤖', title: 'AI-Powered', desc: 'Smart automation' },
           ],
           cta: { text: 'Start Free', url: 'aisolutionshub.org' },
-          config: { width: 720, height: 1280, fps: 30 },
-          style: { primaryColor: '#6366f1', secondaryColor: '#818cf8' },
+          config: { width: 720, height: 1280, fps: 30, platform: 'tiktok' },
+          style: { primaryColor: '#7c3aed', secondaryColor: '#ec4899' },
           audio: { enabled: false },
           visualStyle: 'dynamic'
         }}

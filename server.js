@@ -165,7 +165,7 @@ function prepareProps(brief) {
     hook: brief.hook || 'AISolutionsHub',
     features: brief.features || [],
     cta: brief.cta || { text: 'Visit', url: 'aisolutionshub.org' },
-    config: configs[brief.platform] || configs.instagram,
+    config: { ...configs[brief.platform] || configs.instagram, platform: brief.platform || 'tiktok' },
     style: brief.style || { primaryColor: '#6366f1', secondaryColor: '#818cf8' },
     audio: audioConfig,
     quality: brief.quality || 'standard',

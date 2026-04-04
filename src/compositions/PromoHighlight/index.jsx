@@ -1,155 +1,279 @@
+/**
+ * AISOLUTIONSHUBVIDEOS - Motion Graphics Video Engine
+ * Safe zones + Kinetic typography + Organic animations
+ * Based on 2026 platform specs
+ */
+
 import React from 'react';
-import { AbsoluteFill, Sequence, useCurrentFrame, interpolate, spring, useVideoConfig, Audio, OffthreadVideo, Img } from 'remotion';
+import {
+  AbsoluteFill,
+  Sequence,
+  useCurrentFrame,
+  interpolate,
+  spring,
+  useVideoConfig,
+  Audio,
+  OffthreadVideo
+} from 'remotion';
 import { Series } from '@remotion/transitions';
-import { slide, fade, zoomIn, wipe } from '@remotion/transitions';
-import { RoundedCorner, Circle } from '@remotion/shapes';
+import { slide, fade, zoomIn, wipe, none } from '@remotion/transitions';
 import { applyMotionBlur } from '@remotion/motion-blur';
 
-// ===== STYLE CONFIGURATIONS =====
-const VISUAL_STYLES = {
-  corporate: {
-    name: 'Corporate',
-    description: 'Professional with stock footage backgrounds',
-    bgType: 'video',
-    colors: { primary: '#1a56db', secondary: '#1e40af', accent: '#3b82f6', text: '#ffffff', muted: '#94a3b8' },
-    typography: 'bold, clean, executive',
-    transitions: 'slide',
-    elements: ['overlay', 'badge', 'progress-bar', 'logo-watermark']
+// ===== SAFE ZONES 2026 =====
+// Based on platform UI overlays (TikTok, IG Reels, YouTube Shorts)
+const SAFE_ZONES = {
+  tiktok: {
+    // 1080x1920 base, scaled to composition
+    top: 0.12,      // 12% from top (avoid profile UI)
+    bottom: 0.22,   // 22% from bottom (avoid caption + buttons)
+    left: 0.08,     // 8% from left (avoid like/comment buttons)
+    right: 0.08,    // 8% from right
+    caption: { bottom: 0.28, height: 0.08 } // Caption area
   },
-  dynamic: {
-    name: 'Dynamic',
-    description: 'Animated shapes, vibrant gradients, energetic',
-    bgType: 'gradient-shapes',
-    colors: { primary: '#7c3aed', secondary: '#ec4899', accent: '#f59e0b', text: '#ffffff', muted: '#c4b5fd' },
-    typography: 'kinetic, bold, playful',
-    transitions: 'zoom',
-    elements: ['floating-shapes', 'particles', 'gradient-orbs', 'wave-divider']
+  instagram: {
+    top: 0.08,      // 8% from top (avoid header)
+    bottom: 0.20,   // 20% from bottom (avoid caption + reel info)
+    left: 0.06,
+    right: 0.06,
+    caption: { bottom: 0.24, height: 0.06 }
   },
-  minimal: {
-    name: 'Minimal',
-    description: 'Clean white/black, typography-focused, elegant',
-    bgType: 'solid',
-    colors: { primary: '#000000', secondary: '#333333', accent: '#666666', text: '#000000', muted: '#666666' },
-    typography: 'large, serif, editorial',
-    transitions: 'fade',
-    elements: ['thin-lines', 'subtle-geometry', 'typography-only']
+  youtube: {
+    top: 0.06,
+    bottom: 0.15,   // Less UI at bottom than TikTok
+    left: 0.06,
+    right: 0.06,
+    caption: { bottom: 0.18, height: 0.05 }
   },
-  tech: {
-    name: 'Tech',
-    description: 'Grid patterns, code elements, futuristic',
-    bgType: 'grid-pattern',
-    colors: { primary: '#10b981', secondary: '#06b6d4', accent: '#8b5cf6', text: '#ffffff', muted: '#6ee7b7' },
-    typography: 'monospace, futuristic',
-    transitions: 'wipe',
-    elements: ['grid-lines', 'circuit-paths', 'data-dots', 'scan-line']
+  linkedin: {
+    top: 0.06,
+    bottom: 0.12,   // Minimal UI
+    left: 0.06,
+    right: 0.06,
+    caption: { bottom: 0.15, height: 0.04 }
   },
-  bold: {
-    name: 'Bold',
-    description: 'Vibrant colors, kinetic typography, viral-ready',
-    bgType: 'color-blocks',
-    colors: { primary: '#ef4444', secondary: '#f97316', accent: '#eab308', text: '#ffffff', muted: '#fca5a5' },
-    typography: 'ultra-bold, oversized, attention-grabbing',
-    transitions: 'zoom',
-    elements: ['color-blocks', 'emoji-burst', 'counter-animation', 'pulse-rings']
+  twitter: {
+    top: 0.06,
+    bottom: 0.12,
+    left: 0.06,
+    right: 0.06,
+    caption: { bottom: 0.15, height: 0.04 }
   }
 };
 
-// ===== BACKGROUND COMPONENTS =====
+// ===== VISUAL STYLE DEFINITIONS =====
+const VISUAL_STYLES = {
+  corporate: {
+    name: 'Corporate',
+    colors: {
+      bg: '#0f172a',
+      bgGradient: '#1e3a5f',
+      primary: '#1a56db',
+      secondary: '#3b82f6',
+      accent: '#60a5fa',
+      text: '#ffffff',
+      muted: '#94a3b8',
+      cardBg: 'rgba(30, 58, 95, 0.6)',
+      cardBorder: 'rgba(59, 130, 246, 0.3)'
+    },
+    typography: { fontFamily: 'Inter, sans-serif', fontWeight: '700' },
+    transitions: 'slide',
+    bgType: 'gradient-dots',
+    animationStyle: 'professional'
+  },
+  dynamic: {
+    name: 'Dynamic',
+    colors: {
+      bg: '#1e0533',
+      bgGradient: '#581c87',
+      primary: '#7c3aed',
+      secondary: '#ec4899',
+      accent: '#f59e0b',
+      text: '#ffffff',
+      muted: '#c4b5fd',
+      cardBg: 'rgba(88, 28, 135, 0.5)',
+      cardBorder: 'rgba(124, 58, 237, 0.3)'
+    },
+    typography: { fontFamily: 'Inter, sans-serif', fontWeight: '800' },
+    transitions: 'zoom',
+    bgType: 'floating-shapes',
+    animationStyle: 'energetic'
+  },
+  minimal: {
+    name: 'Minimal',
+    colors: {
+      bg: '#fafafa',
+      bgGradient: '#f5f5f5',
+      primary: '#000000',
+      secondary: '#333333',
+      accent: '#666666',
+      text: '#000000',
+      muted: '#666666',
+      cardBg: '#ffffff',
+      cardBorder: '#e5e7eb'
+    },
+    typography: { fontFamily: 'Inter, sans-serif', fontWeight: '600' },
+    transitions: 'fade',
+    bgType: 'clean-lines',
+    animationStyle: 'elegant'
+  },
+  tech: {
+    name: 'Tech',
+    colors: {
+      bg: '#0a0a0a',
+      bgGradient: '#111827',
+      primary: '#10b981',
+      secondary: '#06b6d4',
+      accent: '#8b5cf6',
+      text: '#ffffff',
+      muted: '#6ee7b7',
+      cardBg: 'rgba(17, 24, 39, 0.8)',
+      cardBorder: 'rgba(16, 185, 129, 0.3)'
+    },
+    typography: { fontFamily: 'Inter, monospace', fontWeight: '700' },
+    transitions: 'wipe',
+    bgType: 'grid-circuit',
+    animationStyle: 'futuristic'
+  },
+  bold: {
+    name: 'Bold',
+    colors: {
+      bg: '#000000',
+      bgGradient: '#1a0000',
+      primary: '#ef4444',
+      secondary: '#f97316',
+      accent: '#eab308',
+      text: '#ffffff',
+      muted: '#fca5a5',
+      cardBg: 'rgba(0, 0, 0, 0.7)',
+      cardBorder: 'rgba(239, 68, 68, 0.4)'
+    },
+    typography: { fontFamily: 'Inter, sans-serif', fontWeight: '900' },
+    transitions: 'zoom',
+    bgType: 'color-blocks',
+    animationStyle: 'aggressive'
+  }
+};
 
-// Corporate: Video overlay background
-const CorporateBackground = ({ style }) => {
-  const frame = useCurrentFrame();
-  const opacity = interpolate(frame, [0, 15], [0, 0.6], { extrapolateRight: 'clamp' });
-  
+// ===== ANIMATED BACKGROUND COMPONENTS =====
+
+// Gradient + Dot Pattern (Corporate)
+const CorporateBackground = ({ colors, width, height, frame }) => {
+  const t = frame / 360;
+  const shiftX = Math.sin(t * Math.PI) * 50;
+  const shiftY = Math.cos(t * Math.PI * 0.7) * 30;
+
   return (
-    <AbsoluteFill>
-      {/* Dark gradient base */}
-      <AbsoluteFill style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0c1929 100%)' }} />
+    <AbsoluteFill style={{ overflow: 'hidden' }}>
+      {/* Base gradient */}
+      <AbsoluteFill style={{
+        background: `linear-gradient(${135 + Math.sin(t * Math.PI * 2) * 15}deg, ${colors.bg} 0%, ${colors.bgGradient} 50%, ${colors.bg} 100%)`
+      }} />
       
-      {/* Subtle pattern overlay */}
-      <AbsoluteFill style={{ 
+      {/* Dot pattern */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
         opacity: 0.03,
         backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-        backgroundSize: '30px 30px'
+        backgroundSize: '24px 24px',
+        transform: `translate(${shiftX}px, ${shiftY}px)`
       }} />
       
-      {/* Accent gradient orbs */}
+      {/* Accent orbs */}
       <div style={{
         position: 'absolute',
-        top: '-10%',
-        right: '-5%',
-        width: '50%',
-        height: '60%',
+        top: '10%',
+        right: '10%',
+        width: 300,
+        height: 300,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${style.primary}15 0%, transparent 70%)`,
-        filter: 'blur(80px)'
+        background: `radial-gradient(circle, ${colors.primary}15 0%, transparent 70%)`,
+        filter: 'blur(80px)',
+        transform: `translate(${Math.sin(t * Math.PI) * 20}px, ${Math.cos(t * Math.PI) * 20}px)`
       }} />
       <div style={{
         position: 'absolute',
-        bottom: '-10%',
-        left: '-5%',
-        width: '40%',
-        height: '50%',
+        bottom: '15%',
+        left: '5%',
+        width: 250,
+        height: 250,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${style.secondary}10 0%, transparent 70%)`,
+        background: `radial-gradient(circle, ${colors.secondary}10 0%, transparent 70%)`,
         filter: 'blur(60px)'
       }} />
     </AbsoluteFill>
   );
 };
 
-// Dynamic: Animated shapes + gradients
-const DynamicBackground = ({ style }) => {
-  const frame = useCurrentFrame();
-  const { width, height } = useVideoConfig();
-  
+// Floating Shapes (Dynamic)
+const DynamicBackground = ({ colors, width, height, frame }) => {
   const shapes = React.useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => ({
+    return Array.from({ length: 15 }, (_, i) => ({
       id: i,
-      x: (Math.sin(i * 1.3) * 0.4 + 0.5) * width,
-      y: (Math.cos(i * 0.9) * 0.4 + 0.5) * height,
-      size: 30 + (i % 4) * 25,
-      rotation: i * 30,
-      speed: 0.3 + (i % 3) * 0.2,
-      color: [style.primary, style.secondary, style.accent][i % 3],
-      type: i % 3
+      startX: (Math.sin(i * 1.3) * 0.4 + 0.5) * width,
+      startY: (Math.cos(i * 0.9) * 0.4 + 0.5) * height,
+      size: 20 + (i % 5) * 15,
+      speed: 0.2 + (i % 3) * 0.15,
+      rotation: i * 24,
+      color: [colors.primary, colors.secondary, colors.accent][i % 3],
+      type: i % 4
     }));
-  }, [width, height, style]);
+  }, [width, height, colors]);
 
   return (
     <AbsoluteFill style={{ overflow: 'hidden' }}>
       {/* Base gradient */}
-      <AbsoluteFill style={{ 
-        background: `linear-gradient(135deg, #1e0533 0%, #3b0764 30%, #581c87 60%, #1e0533 100%)`
+      <AbsoluteFill style={{
+        background: `linear-gradient(${135 + Math.sin(frame * 0.01) * 20}deg, ${colors.bg} 0%, ${colors.bgGradient} 40%, #7c2d12 70%, ${colors.bg} 100%)`
       }} />
       
-      {/* Animated shapes */}
+      {/* Floating shapes */}
       {shapes.map(shape => {
-        const x = shape.x + Math.sin(frame * shape.speed * 0.02 + shape.id) * 40;
-        const y = shape.y + Math.cos(frame * shape.speed * 0.015 + shape.id) * 30;
+        const x = shape.startX + Math.sin(frame * shape.speed * 0.02 + shape.id) * 50;
+        const y = shape.startY + Math.cos(frame * shape.speed * 0.015 + shape.id) * 40;
         const rotation = shape.rotation + frame * shape.speed * 0.5;
-        const opacity = 0.08 + Math.sin(frame * 0.03 + shape.id) * 0.04;
+        const opacity = 0.06 + Math.sin(frame * 0.03 + shape.id) * 0.03;
         
         return (
           <div key={shape.id} style={{
             position: 'absolute',
-            left: x,
-            top: y,
-            transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-            opacity
+            left: x - shape.size / 2,
+            top: y - shape.size / 2,
+            opacity,
+            transform: `rotate(${rotation}deg)`
           }}>
             {shape.type === 0 && (
-              <Circle radius={shape.size} fill={shape.color} />
-            )}
-            {shape.type === 1 && (
-              <RoundedCorner width={shape.size * 1.5} height={shape.size * 1.5} cornerRadius={8} fill={shape.color} />
-            )}
-            {shape.type === 2 && (
               <div style={{
                 width: shape.size,
                 height: shape.size,
+                borderRadius: '50%',
+                background: shape.color
+              }} />
+            )}
+            {shape.type === 1 && (
+              <div style={{
+                width: shape.size * 1.3,
+                height: shape.size,
+                borderRadius: 6,
+                background: shape.color
+              }} />
+            )}
+            {shape.type === 2 && (
+              <div style={{
+                width: 0,
+                height: 0,
+                borderLeft: `${shape.size / 2}px solid transparent`,
+                borderRight: `${shape.size / 2}px solid transparent`,
+                borderBottom: `${shape.size}px solid ${shape.color}`
+              }} />
+            )}
+            {shape.type === 3 && (
+              <div style={{
+                width: shape.size,
+                height: shape.size,
+                borderRadius: '30%',
                 background: shape.color,
-                clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'
+                transform: `rotate(${rotation * 2}deg)`
               }} />
             )}
           </div>
@@ -159,47 +283,53 @@ const DynamicBackground = ({ style }) => {
       {/* Gradient orbs */}
       <div style={{
         position: 'absolute',
-        top: '20%',
-        left: '10%',
-        width: 300,
-        height: 300,
+        top: '15%',
+        left: '20%',
+        width: 350,
+        height: 350,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${style.primary}20 0%, transparent 70%)`,
+        background: `radial-gradient(circle, ${colors.primary}15 0%, transparent 70%)`,
         filter: 'blur(100px)'
       }} />
       <div style={{
         position: 'absolute',
         bottom: '10%',
         right: '15%',
-        width: 250,
-        height: 250,
+        width: 280,
+        height: 280,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${style.secondary}15 0%, transparent 70%)`,
+        background: `radial-gradient(circle, ${colors.secondary}12 0%, transparent 70%)`,
         filter: 'blur(80px)'
       }} />
     </AbsoluteFill>
   );
 };
 
-// Minimal: Clean solid with subtle lines
-const MinimalBackground = ({ style }) => {
-  const frame = useCurrentFrame();
-  const { width, height } = useVideoConfig();
-  
+// Clean Lines (Minimal)
+const MinimalBackground = ({ colors, width, height, frame }) => {
   return (
-    <AbsoluteFill style={{ background: '#fafafa' }}>
-      {/* Thin accent line */}
+    <AbsoluteFill style={{ background: colors.bg }}>
+      {/* Thin horizontal lines */}
       <div style={{
         position: 'absolute',
-        top: height * 0.15,
-        left: width * 0.1,
-        right: width * 0.1,
+        top: '15%',
+        left: '10%',
+        right: '10%',
         height: 1,
-        background: style.primary,
-        opacity: 0.2
+        background: colors.primary,
+        opacity: 0.15
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '85%',
+        left: '10%',
+        right: '10%',
+        height: 1,
+        background: colors.primary,
+        opacity: 0.15
       }} />
       
-      {/* Subtle geometric element */}
+      {/* Subtle circles */}
       <div style={{
         position: 'absolute',
         top: '50%',
@@ -207,7 +337,7 @@ const MinimalBackground = ({ style }) => {
         transform: 'translateY(-50%)',
         width: 200,
         height: 200,
-        border: `1px solid ${style.primary}15`,
+        border: `1px solid ${colors.primary}10`,
         borderRadius: '50%'
       }} />
       <div style={{
@@ -217,40 +347,47 @@ const MinimalBackground = ({ style }) => {
         transform: 'translateY(-50%)',
         width: 280,
         height: 280,
-        border: `1px solid ${style.primary}08`,
+        border: `1px solid ${colors.primary}08`,
+        borderRadius: '50%'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        right: '8%',
+        transform: 'translateY(-50%)',
+        width: 360,
+        height: 360,
+        border: `1px solid ${colors.primary}05`,
         borderRadius: '50%'
       }} />
     </AbsoluteFill>
   );
 };
 
-// Tech: Grid + circuit patterns
-const TechBackground = ({ style }) => {
-  const frame = useCurrentFrame();
-  const { width, height } = useVideoConfig();
-  
+// Grid + Circuit (Tech)
+const TechBackground = ({ colors, width, height, frame }) => {
   const dots = React.useMemo(() => {
-    return Array.from({ length: 40 }, (_, i) => ({
-      x: (i % 8) * (width / 8) + width / 16,
-      y: Math.floor(i / 8) * (height / 5) + height / 10,
+    return Array.from({ length: 50 }, (_, i) => ({
+      x: (i % 10) * (width / 10) + width / 20,
+      y: Math.floor(i / 10) * (height / 5) + height / 10,
       pulse: Math.random() * Math.PI * 2
     }));
   }, [width, height]);
 
   return (
-    <AbsoluteFill style={{ background: '#0a0a0a', overflow: 'hidden' }}>
-      {/* Grid lines */}
+    <AbsoluteFill style={{ background: colors.bg, overflow: 'hidden' }}>
+      {/* Grid */}
       <AbsoluteFill style={{
         backgroundImage: `
-          linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px)
+          linear-gradient(${colors.primary}08 1px, transparent 1px),
+          linear-gradient(90deg, ${colors.primary}08 1px, transparent 1px)
         `,
-        backgroundSize: '60px 60px'
+        backgroundSize: '50px 50px'
       }} />
       
-      {/* Data dots */}
+      {/* Circuit dots */}
       {dots.map((dot, i) => {
-        const opacity = 0.2 + Math.sin(frame * 0.05 + dot.pulse) * 0.2;
+        const opacity = 0.15 + Math.sin(frame * 0.05 + dot.pulse) * 0.15;
         return (
           <div key={i} style={{
             position: 'absolute',
@@ -259,7 +396,7 @@ const TechBackground = ({ style }) => {
             width: 4,
             height: 4,
             borderRadius: '50%',
-            background: style.primary,
+            background: colors.primary,
             opacity
           }} />
         );
@@ -270,55 +407,51 @@ const TechBackground = ({ style }) => {
         position: 'absolute',
         left: 0,
         right: 0,
-        top: (frame * 2) % height,
+        top: (frame * 1.5) % height,
         height: 2,
-        background: `linear-gradient(90deg, transparent, ${style.primary}30, transparent)`
+        background: `linear-gradient(90deg, transparent, ${colors.primary}20, transparent)`
       }} />
       
-      {/* Glow orbs */}
+      {/* Glow */}
       <div style={{
         position: 'absolute',
         top: '10%',
         right: '10%',
-        width: 200,
-        height: 200,
+        width: 250,
+        height: 250,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${style.primary}10 0%, transparent 70%)`,
-        filter: 'blur(60px)'
+        background: `radial-gradient(circle, ${colors.primary}10 0%, transparent 70%)`,
+        filter: 'blur(80px)'
       }} />
     </AbsoluteFill>
   );
 };
 
-// Bold: Color blocks + kinetic
-const BoldBackground = ({ style }) => {
-  const frame = useCurrentFrame();
-  const { width, height } = useVideoConfig();
-  
+// Color Blocks (Bold)
+const BoldBackground = ({ colors, width, height, frame }) => {
   return (
     <AbsoluteFill style={{ overflow: 'hidden' }}>
-      {/* Base */}
-      <AbsoluteFill style={{ background: '#000000' }} />
+      <AbsoluteFill style={{ background: colors.bg }} />
       
       {/* Animated color blocks */}
-      {[0, 1, 2].map(i => {
-        const blockWidth = width * (0.3 + i * 0.1);
-        const blockHeight = height * (0.15 + i * 0.05);
-        const x = width * 0.1 + Math.sin(frame * 0.02 + i) * 50;
-        const y = height * (0.2 + i * 0.25) + Math.cos(frame * 0.015 + i) * 30;
-        const rotation = Math.sin(frame * 0.01 + i * 2) * 5;
-        const colors = [style.primary, style.secondary, style.accent];
+      {[0, 1, 2, 3].map(i => {
+        const bw = width * (0.25 + i * 0.08);
+        const bh = height * (0.12 + i * 0.04);
+        const x = width * 0.05 + Math.sin(frame * 0.015 + i * 1.5) * 60;
+        const y = height * (0.15 + i * 0.2) + Math.cos(frame * 0.012 + i) * 40;
+        const rotation = Math.sin(frame * 0.008 + i * 2) * 8;
+        const blockColors = [colors.primary, colors.secondary, colors.accent, colors.primary];
         
         return (
           <div key={i} style={{
             position: 'absolute',
             left: x,
             top: y,
-            width: blockWidth,
-            height: blockHeight,
-            background: colors[i],
-            opacity: 0.12,
-            borderRadius: 20,
+            width: bw,
+            height: bh,
+            background: blockColors[i],
+            opacity: 0.08 + Math.sin(frame * 0.02 + i) * 0.04,
+            borderRadius: 16,
             transform: `rotate(${rotation}deg)`
           }} />
         );
@@ -326,9 +459,9 @@ const BoldBackground = ({ style }) => {
       
       {/* Pulse rings */}
       {[0, 1, 2].map(i => {
-        const progress = ((frame * 0.02 + i * 0.33) % 1);
-        const size = progress * 400;
-        const opacity = (1 - progress) * 0.15;
+        const progress = ((frame * 0.015 + i * 0.33) % 1);
+        const size = progress * 500;
+        const opacity = (1 - progress) * 0.12;
         
         return (
           <div key={`ring-${i}`} style={{
@@ -338,7 +471,7 @@ const BoldBackground = ({ style }) => {
             width: size,
             height: size,
             borderRadius: '50%',
-            border: `2px solid ${style.primary}`,
+            border: `3px solid ${colors.primary}`,
             opacity
           }} />
         );
@@ -347,101 +480,397 @@ const BoldBackground = ({ style }) => {
   );
 };
 
-// ===== BACKGROUND SELECTOR =====
-const BackgroundByStyle = ({ styleName, style }) => {
-  switch (styleName) {
-    case 'corporate': return <CorporateBackground style={style} />;
-    case 'dynamic': return <DynamicBackground style={style} />;
-    case 'minimal': return <MinimalBackground style={style} />;
-    case 'tech': return <TechBackground style={style} />;
-    case 'bold': return <BoldBackground style={style} />;
-    default: return <DynamicBackground style={style} />;
+// Background selector
+const BackgroundByStyle = ({ style, width, height, frame }) => {
+  switch (style.bgType) {
+    case 'gradient-dots': return <CorporateBackground colors={style.colors} width={width} height={height} frame={frame} />;
+    case 'floating-shapes': return <DynamicBackground colors={style.colors} width={width} height={height} frame={frame} />;
+    case 'clean-lines': return <MinimalBackground colors={style.colors} width={width} height={height} frame={frame} />;
+    case 'grid-circuit': return <TechBackground colors={style.colors} width={width} height={height} frame={frame} />;
+    case 'color-blocks': return <BoldBackground colors={style.colors} width={width} height={height} frame={frame} />;
+    default: return <DynamicBackground colors={style.colors} width={width} height={height} frame={frame} />;
   }
 };
 
-// ===== TRANSITION SELECTOR =====
-const getTransition = (styleName) => {
-  switch (styleName) {
-    case 'corporate': return slide({ direction: 'from-right' });
-    case 'dynamic': return zoomIn();
-    case 'minimal': return fade();
-    case 'tech': return wipe({ direction: 'from-left' });
-    case 'bold': return zoomIn();
-    default: return fade();
-  }
+// ===== KINETIC TEXT COMPONENTS =====
+
+// Word-by-word reveal
+const KineticText = ({ text, frame, fps, style, fontSize, maxFontSize, color, align = 'center', delay = 0 }) => {
+  const words = text.split(' ');
+  const wordsPerSecond = style.animationStyle === 'aggressive' ? 6 : style.animationStyle === 'energetic' ? 5 : 4;
+  
+  return (
+    <div style={{ textAlign: align }}>
+      {words.map((word, i) => {
+        const wordFrame = frame - delay - (i * (fps / wordsPerSecond));
+        const opacity = interpolate(wordFrame, [0, 6], [0, 1], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
+        const translateY = interpolate(wordFrame, [0, 8], [30, 0], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
+        const scale = interpolate(wordFrame, [0, 6], [0.8, 1], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
+        
+        return (
+          <span key={i} style={{
+            display: 'inline-block',
+            opacity,
+            transform: `translateY(${translateY}px) scale(${scale})`,
+            marginRight: '0.2em',
+            fontSize,
+            fontWeight: style.typography.fontWeight,
+            fontFamily: style.typography.fontFamily,
+            color: color || style.colors.text,
+            letterSpacing: style.name === 'minimal' ? '0.05em' : '-0.02em',
+            textTransform: style.name === 'minimal' ? 'uppercase' : 'none'
+          }}>
+            {word}
+          </span>
+        );
+      })}
+    </div>
+  );
 };
 
-// ===== ANIMATED STAT BADGE =====
-const StatBadge = ({ value, label, style }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+// Counter animation (for stats like "70%")
+const AnimatedCounter = ({ value, frame, fps, style, delay = 0, color, fontSize = 64 }) => {
+  const numericPart = parseInt(value.replace(/[^0-9]/g, ''));
+  const suffix = value.replace(/[0-9]/g, '');
+  const currentFrame = frame - delay;
+  const duration = 30; // frames to count up
   
-  const scale = spring({ frame, fps, config: { damping: 100, stiffness: 200 } });
-  const opacity = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: 'clamp' });
+  const currentValue = interpolate(currentFrame, [0, duration], [0, numericPart], {
+    extrapolateRight: 'clamp',
+    extrapolateLeft: 'clamp'
+  });
   
-  // Animate number counting
-  const numericValue = parseInt(value);
-  const displayValue = isNaN(numericValue) ? value : Math.floor(interpolate(frame, [0, 30], [0, numericValue], { extrapolateRight: 'clamp' }));
+  const scale = spring({
+    frame: currentFrame,
+    fps,
+    config: { damping: 100, stiffness: 200 }
+  });
+  
+  const opacity = interpolate(currentFrame, [0, 8], [0, 1], { extrapolateRight: 'clamp' });
 
   return (
     <div style={{
       opacity,
       transform: `scale(${scale})`,
-      display: 'inline-flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: '12px 24px',
-      background: `${style.primary}15`,
-      border: `1px solid ${style.primary}30`,
-      borderRadius: 12,
-      marginRight: 12
+      fontSize,
+      fontWeight: '900',
+      color: color || style.colors.primary,
+      fontFamily: style.typography.fontFamily,
+      letterSpacing: '-0.03em'
     }}>
-      <span style={{
-        fontSize: 32,
-        fontWeight: '800',
-        color: style.primary
-      }}>
-        {isNaN(numericValue) ? value : `${displayValue}${value.includes('%') ? '%' : value.includes('/') ? '' : ''}`}
-      </span>
-      <span style={{
-        fontSize: 12,
-        color: style.muted,
-        fontWeight: '500',
-        marginTop: 2
-      }}>
-        {label}
-      </span>
+      {Math.floor(currentValue)}{suffix}
     </div>
+  );
+};
+
+// ===== SCENE COMPONENTS =====
+
+// Scene 1: Logo + Brand Intro
+const LogoScene = ({ style, width, height, frame, fps }) => {
+  const scale = spring({ frame, fps, config: { damping: 200, stiffness: 200, mass: 0.5 } });
+  const opacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' });
+  const rotation = interpolate(frame, [0, 20], [-8, 0], { extrapolateRight: 'clamp' });
+  const taglineOpacity = interpolate(frame, [15, 30], [0, 1], { extrapolateRight: 'clamp' });
+  const taglineY = interpolate(frame, [15, 30], [20, 0], { extrapolateRight: 'clamp' });
+
+  const boxSize = Math.min(width, height) * 0.15;
+
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{
+        opacity,
+        transform: `scale(${scale}) rotate(${rotation}deg)`,
+        textAlign: 'center'
+      }}>
+        {/* Logo box */}
+        <div style={{
+          width: boxSize,
+          height: boxSize,
+          borderRadius: style.name === 'minimal' ? 0 : boxSize * 0.25,
+          background: style.name === 'minimal' ? 'transparent' : `linear-gradient(135deg, ${style.colors.primary}, ${style.colors.secondary})`,
+          border: style.name === 'minimal' ? `3px solid ${style.colors.primary}` : 'none',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          margin: '0 auto 20px',
+          boxShadow: style.name === 'tech' ? `0 0 40px ${style.colors.primary}40` : `0 20px 60px rgba(0,0,0,0.3)`
+        }}>
+          <span style={{
+            fontSize: boxSize * 0.45,
+            fontWeight: '900',
+            color: style.name === 'minimal' ? style.colors.primary : '#fff',
+            fontFamily: style.name === 'tech' ? 'monospace' : 'inherit'
+          }}>AI</span>
+        </div>
+        
+        {/* Brand name */}
+        <h1 style={{
+          fontSize: Math.min(width, height) * 0.06,
+          fontWeight: '900',
+          color: style.colors.text,
+          margin: '0 0 8px',
+          letterSpacing: style.name === 'minimal' ? '0.1em' : '-0.02em',
+          textTransform: style.name === 'minimal' ? 'uppercase' : 'none'
+        }}>
+          AISolutionsHub
+        </h1>
+        
+        {/* Tagline */}
+        <p style={{
+          fontSize: Math.min(width, height) * 0.025,
+          color: style.colors.muted,
+          margin: 0,
+          fontWeight: '500',
+          opacity: taglineOpacity,
+          transform: `translateY(${taglineY}px)`
+        }}>
+          Your AI Automation Partner
+        </p>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// Scene 2: Hook with kinetic text
+const HookScene = ({ hook, style, width, height, frame, fps, platform }) => {
+  const safeZone = SAFE_ZONES[platform] || SAFE_ZONES.tiktok;
+  const opacity = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: 'clamp' });
+  const scale = interpolate(frame, [0, 10], [0.95, 1], { extrapolateRight: 'clamp' });
+  
+  // Accent line animation
+  const lineWidth = interpolate(frame, [0, 15], [0, 80], { extrapolateRight: 'clamp' });
+
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 40px' }}>
+      <div style={{
+        opacity,
+        transform: `scale(${scale})`,
+        textAlign: 'center',
+        maxWidth: width * (1 - safeZone.left - safeZone.right)
+      }}>
+        {/* Accent line */}
+        <div style={{
+          width: lineWidth,
+          height: style.name === 'minimal' ? 1 : 4,
+          background: style.name === 'minimal' ? style.colors.primary : `linear-gradient(90deg, ${style.colors.primary}, ${style.colors.secondary})`,
+          borderRadius: 2,
+          margin: '0 auto 24px'
+        }} />
+        
+        {/* Hook text */}
+        <KineticText
+          text={hook}
+          frame={frame}
+          fps={fps}
+          style={style}
+          fontSize={Math.min(width, height) * 0.055}
+          color={style.colors.text}
+        />
+        
+        {/* Subtitle */}
+        <p style={{
+          fontSize: Math.min(width, height) * 0.022,
+          color: style.colors.muted,
+          marginTop: 16,
+          fontWeight: '500',
+          opacity: interpolate(frame, [10, 25], [0, 1], { extrapolateRight: 'clamp' })
+        }}>
+          Discover the future of automation
+        </p>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// Scene 3: Feature Card with stat badge
+const FeatureScene = ({ feature, index, style, width, height, frame, fps, platform }) => {
+  const safeZone = SAFE_ZONES[platform] || SAFE_ZONES.tiktok;
+  
+  const scale = spring({ frame, fps, config: { damping: 100, stiffness: 200 } });
+  const opacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
+  const translateY = interpolate(frame, [0, 15], [60, 0], { extrapolateRight: 'clamp' });
+  
+  const cardWidth = Math.min(width * 0.85, 600);
+  const cardHeight = Math.min(height * 0.35, 300);
+
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 40px' }}>
+      <div style={{
+        opacity,
+        transform: `translateY(${translateY}px) scale(${scale})`,
+        width: cardWidth,
+        textAlign: 'center'
+      }}>
+        {/* Card */}
+        <div style={{
+          background: style.colors.cardBg,
+          backdropFilter: style.name === 'minimal' ? 'none' : 'blur(20px)',
+          borderRadius: style.name === 'minimal' ? 0 : 24,
+          padding: '32px 28px',
+          border: `1px solid ${style.colors.cardBorder}`,
+          boxShadow: style.name === 'tech' ? `0 0 30px ${style.colors.primary}20` : `0 20px 60px rgba(0,0,0,0.3)`
+        }}>
+          {/* Icon */}
+          <div style={{
+            width: 72,
+            height: 72,
+            borderRadius: style.name === 'minimal' ? 0 : 18,
+            background: style.name === 'minimal' ? `${style.colors.primary}08` : `${style.colors.primary}20`,
+            border: `2px solid ${style.colors.primary}40`,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            margin: '0 auto 16px',
+            fontSize: 36
+          }}>
+            {feature.icon || '✨'}
+          </div>
+          
+          {/* Title */}
+          <h3 style={{
+            fontSize: Math.min(width, height) * 0.04,
+            fontWeight: '800',
+            color: style.colors.text,
+            margin: '0 0 10px',
+            letterSpacing: style.name === 'minimal' ? '0.05em' : '-0.01em',
+            textTransform: style.name === 'minimal' ? 'uppercase' : 'none'
+          }}>
+            {feature.title}
+          </h3>
+          
+          {/* Description */}
+          <p style={{
+            fontSize: Math.min(width, height) * 0.022,
+            color: style.colors.muted,
+            margin: 0,
+            lineHeight: 1.5,
+            fontWeight: '400'
+          }}>
+            {feature.desc}
+          </p>
+          
+          {/* Progress bar */}
+          <div style={{
+            marginTop: 20,
+            height: 3,
+            background: `${style.colors.primary}20`,
+            borderRadius: 2,
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              height: '100%',
+              width: `${(frame / 60) * 100}%`,
+              background: `linear-gradient(90deg, ${style.colors.primary}, ${style.colors.secondary})`,
+              borderRadius: 2
+            }} />
+          </div>
+        </div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// Scene 4: CTA with pulse
+const CTAScene = ({ cta, style, width, height, frame, fps, platform }) => {
+  const scale = spring({ frame, fps, config: { damping: 100, stiffness: 200 } });
+  const opacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' });
+  const pulse = 1 + Math.sin(frame * 0.15) * 0.02;
+
+  const btnWidth = Math.min(width * 0.6, 320);
+  const btnHeight = 64;
+
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 40px' }}>
+      <div style={{
+        opacity,
+        transform: `scale(${scale * pulse})`,
+        textAlign: 'center'
+      }}>
+        <h3 style={{
+          fontSize: Math.min(width, height) * 0.045,
+          fontWeight: '800',
+          color: style.colors.text,
+          margin: '0 0 12px',
+          textTransform: style.name === 'minimal' ? 'uppercase' : 'none',
+          letterSpacing: style.name === 'minimal' ? '0.05em' : 'normal'
+        }}>
+          Ready to transform your business?
+        </h3>
+        
+        <p style={{
+          fontSize: Math.min(width, height) * 0.022,
+          color: style.colors.muted,
+          margin: '0 0 32px'
+        }}>
+          Join thousands of businesses already using AI
+        </p>
+        
+        {/* CTA Button */}
+        <div style={{
+          display: 'inline-block',
+          padding: '16px 40px',
+          background: style.name === 'minimal' ? style.colors.primary : `linear-gradient(135deg, ${style.colors.primary}, ${style.colors.secondary})`,
+          borderRadius: style.name === 'minimal' ? 0 : 14,
+          border: style.name === 'minimal' ? `2px solid ${style.colors.primary}` : 'none',
+          boxShadow: style.name === 'tech' ? `0 0 30px ${style.colors.primary}40` : `0 10px 30px rgba(0,0,0,0.3)`,
+          marginBottom: 16
+        }}>
+          <span style={{
+            fontSize: Math.min(width, height) * 0.028,
+            fontWeight: '800',
+            color: '#ffffff'
+          }}>
+            {cta?.text || 'Start Free'}
+          </span>
+        </div>
+        
+        <p style={{
+          fontSize: Math.min(width, height) * 0.02,
+          color: style.name === 'minimal' ? '#999' : '#64748b',
+          margin: 0
+        }}>
+          {cta?.url || 'aisolutionshub.org'}
+        </p>
+      </div>
+    </AbsoluteFill>
   );
 };
 
 // ===== MAIN COMPOSITION =====
 export const PromoHighlight = ({ hook, features, cta, config, style, audio, visualStyle }) => {
-  const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   
   const styleName = visualStyle || 'dynamic';
   const styleConfig = { ...VISUAL_STYLES[styleName], ...style };
+  const platform = config?.platform || 'tiktok';
   
   // Dynamic timing
-  const LOGO_DURATION = 45;
-  const HOOK_DURATION = 75;
-  const FEATURE_DURATION = 60;
-  const CTA_DURATION = 90;
+  const LOGO_DURATION = 45;    // 1.5s
+  const HOOK_DURATION = 75;    // 2.5s
+  const FEATURE_DURATION = 60; // 2s each
+  const CTA_DURATION = 90;     // 3s
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#0f172a', overflow: 'hidden' }}>
-      {/* Background */}
-      <BackgroundByStyle styleName={styleName} style={styleConfig} />
+    <AbsoluteFill style={{ backgroundColor: styleConfig.colors.bg, overflow: 'hidden' }}>
+      {/* Animated Background */}
+      <BackgroundByStyle style={styleConfig} width={width} height={height} frame={useCurrentFrame()} />
 
       {/* Logo Intro */}
       <Sequence from={0} durationInFrames={LOGO_DURATION} name="logo">
-        <LogoAnimation style={styleConfig} styleName={styleName} />
+        <LogoScene style={styleConfig} width={width} height={height} frame={useCurrentFrame()} fps={fps} />
       </Sequence>
 
       {/* Hook */}
       <Sequence from={LOGO_DURATION} durationInFrames={HOOK_DURATION} name="hook">
-        <HookReveal hook={hook} style={styleConfig} styleName={styleName} />
+        <HookScene 
+          hook={hook} 
+          style={styleConfig} 
+          width={width} 
+          height={height} 
+          frame={useCurrentFrame()} 
+          fps={fps}
+          platform={platform}
+        />
       </Sequence>
 
       {/* Features */}
@@ -454,12 +883,15 @@ export const PromoHighlight = ({ hook, features, cta, config, style, audio, visu
             durationInFrames={FEATURE_DURATION}
             name={`feature-${i}`}
           >
-            <FeatureCardPremium 
+            <FeatureScene 
               feature={feature} 
               index={i} 
               style={styleConfig}
-              styleName={styleName}
-              config={config}
+              width={width}
+              height={height}
+              frame={useCurrentFrame()}
+              fps={fps}
+              platform={platform}
             />
           </Sequence>
         );
@@ -471,317 +903,21 @@ export const PromoHighlight = ({ hook, features, cta, config, style, audio, visu
         durationInFrames={CTA_DURATION}
         name="cta"
       >
-        <CallToActionPremium text={cta?.text} url={cta?.url} style={styleConfig} styleName={styleName} />
+        <CTAScene 
+          cta={cta} 
+          style={styleConfig} 
+          width={width} 
+          height={height} 
+          frame={useCurrentFrame()} 
+          fps={fps}
+          platform={platform}
+        />
       </Sequence>
 
       {/* Audio */}
       {audio?.enabled && audio?.src && (
         <Audio src={audio.src} startFrom={0} />
       )}
-    </AbsoluteFill>
-  );
-};
-
-// ===== LOGO ANIMATION =====
-const LogoAnimation = ({ style, styleName }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-
-  const scale = spring({ frame, fps, config: { damping: 200, stiffness: 200, mass: 0.5 } });
-  const opacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' });
-  const rotation = interpolate(frame, [0, 20], [-10, 0], { extrapolateRight: 'clamp' });
-
-  const isMinimal = styleName === 'minimal';
-  const isTech = styleName === 'tech';
-
-  return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{
-        transform: `scale(${scale}) rotate(${rotation}deg)`,
-        opacity,
-        textAlign: 'center'
-      }}>
-        {/* Logo icon */}
-        <div style={{
-          width: 120,
-          height: 120,
-          borderRadius: isMinimal ? 0 : 30,
-          background: isMinimal 
-            ? 'transparent' 
-            : `linear-gradient(135deg, ${style.primary}, ${style.secondary})`,
-          border: isMinimal ? `3px solid ${style.primary}` : 'none',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          margin: '0 auto 20px',
-          boxShadow: isTech ? `0 0 40px ${style.primary}40` : `0 20px 60px rgba(99,102,241,0.4)`
-        }}>
-          <span style={{ 
-            fontSize: 56, 
-            fontWeight: 'bold', 
-            color: isMinimal ? style.primary : '#fff',
-            fontFamily: isTech ? 'monospace' : 'inherit'
-          }}>AI</span>
-        </div>
-        
-        <h1 style={{
-          fontSize: 48,
-          fontWeight: '800',
-          color: isMinimal ? '#000' : '#ffffff',
-          margin: '0 0 8px',
-          letterSpacing: isMinimal ? '0.1em' : '-0.02em',
-          textTransform: isMinimal ? 'uppercase' : 'none'
-        }}>
-          AISolutionsHub
-        </h1>
-        
-        <p style={{
-          fontSize: 20,
-          color: isMinimal ? '#666' : '#94a3b8',
-          margin: 0,
-          fontWeight: '500'
-        }}>
-          Your AI Automation Partner
-        </p>
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-// ===== HOOK REVEAL =====
-const HookReveal = ({ hook, style, styleName }) => {
-  const frame = useCurrentFrame();
-  const { fps, width } = useVideoConfig();
-
-  const opacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' });
-  const translateY = interpolate(frame, [0, 20], [40, 0], { extrapolateRight: 'clamp' });
-  const scale = interpolate(frame, [0, 10], [0.95, 1], { extrapolateRight: 'clamp' });
-
-  const words = hook.split(' ');
-  const isMinimal = styleName === 'minimal';
-  const isBold = styleName === 'bold';
-
-  return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 40px' }}>
-      <div style={{
-        opacity,
-        transform: `translateY(${translateY}px) scale(${scale})`,
-        textAlign: 'center',
-        maxWidth: width - 80
-      }}>
-        {/* Accent line */}
-        <div style={{
-          width: 60,
-          height: styleName === 'minimal' ? 1 : 4,
-          background: isMinimal ? style.primary : `linear-gradient(90deg, ${style.primary}, ${style.secondary})`,
-          borderRadius: 2,
-          margin: '0 auto 24px'
-        }} />
-        
-        <h2 style={{
-          fontSize: isBold ? 56 : 42,
-          fontWeight: isBold ? '900' : '800',
-          color: isMinimal ? '#000' : '#ffffff',
-          lineHeight: 1.2,
-          margin: 0,
-          letterSpacing: isMinimal ? '0.05em' : '-0.02em',
-          textTransform: isMinimal ? 'uppercase' : 'none'
-        }}>
-          {words.map((word, i) => {
-            const wordFrame = frame - i * 3;
-            const wordOpacity = interpolate(wordFrame, [0, 8], [0, 1], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
-            const wordY = interpolate(wordFrame, [0, 8], [20, 0], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
-            
-            return (
-              <span key={i} style={{
-                display: 'inline-block',
-                opacity: wordOpacity,
-                transform: `translateY(${wordY}px)`,
-                marginRight: '0.25em',
-                background: isBold ? `linear-gradient(135deg, ${style.primary}, ${style.secondary})` : 'none',
-                WebkitBackgroundClip: isBold ? 'text' : 'none',
-                WebkitTextFillColor: isBold ? 'transparent' : 'inherit',
-                padding: isBold ? '0 4px' : 0
-              }}>
-                {word}
-              </span>
-            );
-          })}
-        </h2>
-        
-        <p style={{
-          fontSize: 18,
-          color: isMinimal ? '#666' : '#94a3b8',
-          marginTop: 16,
-          fontWeight: '500'
-        }}>
-          Discover the future of automation
-        </p>
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-// ===== FEATURE CARD =====
-const FeatureCardPremium = ({ feature, index, style, styleName, config }) => {
-  const frame = useCurrentFrame();
-  const { fps, width, height } = useVideoConfig();
-
-  const scale = spring({ frame, fps, config: { damping: 100, stiffness: 200 } });
-  const opacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
-  const translateY = interpolate(frame, [0, 15], [60, 0], { extrapolateRight: 'clamp' });
-
-  const isMinimal = styleName === 'minimal';
-  const isTech = styleName === 'tech';
-  const isBold = styleName === 'bold';
-
-  return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 40px' }}>
-      <div style={{
-        opacity,
-        transform: `translateY(${translateY}px) scale(${scale})`,
-        width: Math.min(width - 80, 640),
-        background: isMinimal ? '#ffffff' : 'rgba(30, 41, 59, 0.8)',
-        backdropFilter: isMinimal ? 'none' : 'blur(20px)',
-        borderRadius: isMinimal ? 0 : 24,
-        padding: '40px 32px',
-        border: isMinimal 
-          ? `2px solid ${style.primary}` 
-          : `1px solid ${style.primary}20`,
-        boxShadow: isTech 
-          ? `0 0 30px ${style.primary}20, inset 0 0 30px ${style.primary}05`
-          : isMinimal 
-            ? 'none'
-            : `0 20px 60px rgba(0,0,0,0.3)`,
-        textAlign: 'center'
-      }}>
-        {/* Feature icon */}
-        <div style={{
-          width: 80,
-          height: 80,
-          borderRadius: isMinimal ? 0 : 20,
-          background: isMinimal ? `${style.primary}08` : `${style.primary}20`,
-          border: `2px solid ${style.primary}40`,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          margin: '0 auto 20px',
-          fontSize: 40
-        }}>
-          {feature.icon || '✨'}
-        </div>
-        
-        {/* Feature title */}
-        <h3 style={{
-          fontSize: isBold ? 36 : 32,
-          fontWeight: isBold ? '900' : '700',
-          color: isMinimal ? '#000' : '#ffffff',
-          margin: '0 0 12px',
-          letterSpacing: isMinimal ? '0.05em' : '-0.01em',
-          textTransform: isMinimal ? 'uppercase' : 'none'
-        }}>
-          {feature.title}
-        </h3>
-        
-        {/* Feature description */}
-        <p style={{
-          fontSize: 18,
-          color: isMinimal ? '#666' : '#94a3b8',
-          margin: 0,
-          lineHeight: 1.5,
-          fontWeight: '400'
-        }}>
-          {feature.desc}
-        </p>
-        
-        {/* Progress indicator */}
-        <div style={{
-          marginTop: 24,
-          height: 3,
-          background: isMinimal ? '#e5e7eb' : `${style.primary}20`,
-          borderRadius: 2,
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${(frame / 60) * 100}%`,
-            background: isBold 
-              ? `linear-gradient(90deg, ${style.primary}, ${style.secondary}, ${style.accent})`
-              : `linear-gradient(90deg, ${style.primary}, ${style.secondary})`,
-            borderRadius: 2
-          }} />
-        </div>
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-// ===== CTA =====
-const CallToActionPremium = ({ text, url, style, styleName }) => {
-  const frame = useCurrentFrame();
-  const { fps, width } = useVideoConfig();
-
-  const opacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' });
-  const scale = spring({ frame, fps, config: { damping: 100, stiffness: 200 } });
-  const pulse = 1 + Math.sin(frame * 0.15) * 0.02;
-
-  const isMinimal = styleName === 'minimal';
-  const isBold = styleName === 'bold';
-  const isTech = styleName === 'tech';
-
-  return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '0 40px' }}>
-      <div style={{
-        opacity,
-        transform: `scale(${scale * pulse})`,
-        textAlign: 'center'
-      }}>
-        <h3 style={{
-          fontSize: 36,
-          fontWeight: '700',
-          color: isMinimal ? '#000' : '#ffffff',
-          margin: '0 0 12px',
-          textTransform: isMinimal ? 'uppercase' : 'none',
-          letterSpacing: isMinimal ? '0.05em' : 'normal'
-        }}>
-          Ready to transform your business?
-        </h3>
-        
-        <p style={{
-          fontSize: 18,
-          color: isMinimal ? '#666' : '#94a3b8',
-          margin: '0 0 32px'
-        }}>
-          Join thousands of businesses already using AI
-        </p>
-        
-        {/* CTA Button */}
-        <div style={{
-          display: 'inline-block',
-          padding: '16px 40px',
-          background: isMinimal ? style.primary : `linear-gradient(135deg, ${style.primary}, ${style.secondary})`,
-          borderRadius: isMinimal ? 0 : 12,
-          border: isMinimal ? `2px solid ${style.primary}` : 'none',
-          boxShadow: isTech ? `0 0 30px ${style.primary}40` : isBold ? `0 15px 40px ${style.primary}50` : `0 10px 30px rgba(99,102,241,0.4)`,
-          marginBottom: 16
-        }}>
-          <span style={{
-            fontSize: 20,
-            fontWeight: '700',
-            color: isMinimal ? '#ffffff' : '#ffffff'
-          }}>
-            {text || 'Start Free'}
-          </span>
-        </div>
-        
-        <p style={{
-          fontSize: 16,
-          color: isMinimal ? '#999' : '#64748b',
-          margin: 0
-        }}>
-          {url || 'aisolutionshub.org'}
-        </p>
-      </div>
     </AbsoluteFill>
   );
 };
