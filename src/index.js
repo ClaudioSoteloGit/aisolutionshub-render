@@ -13,12 +13,18 @@ const RemotionRoot = () => {
         width={720}
         height={1280}
         defaultProps={{
-          hook: 'Automate Your Business with AI',
+          brandName: 'Your Brand',
+          hook: 'Transform Your Business Today',
           features: [
-            { icon: '⚡', title: '70% Cost Reduction', desc: 'Eliminate monetary inefficiencies through intelligent automation' },
+            { icon: '⚡', title: '70% Cost Reduction', desc: 'Eliminate inefficiencies through intelligent automation' },
             { icon: '🔄', title: '24/7 Operations', desc: 'Systems that never rest, processing data while you scale' },
           ],
-          cta: { text: 'Start Free', url: 'aisolutionshub.org' },
+          cta: {
+            headline: 'Ready to get started?',
+            subtitle: 'Take the first step today',
+            text: 'Learn More',
+            url: 'yourwebsite.com'
+          },
           config: { width: 720, height: 1280, fps: 30, platform: 'tiktok' },
           style: {
             name: 'cinematic',
@@ -29,7 +35,9 @@ const RemotionRoot = () => {
               accent: '#2563EB',
               text: '#F8FAFC',
               muted: '#94A3B8'
-            }
+            },
+            tagline: 'Innovation starts here',
+            subtitle: 'Discover what is possible'
           },
           audio: { enabled: false }
         }}
